@@ -68,18 +68,18 @@ public class HydrophoneSkullPlugin implements Plugin, ActionListener {
         Renderable mainPanel = Renderable.lookupByTag("MainFlyout");
         if (mainPanel != null && mainPanel instanceof FlyoutPanel) {
             FlyoutPanel panel = (FlyoutPanel) mainPanel;
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 350, 250, 220, 25, controller).setTitle("Find Fiducials").setCommand("findFiducials"));
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1280, 190, 200, 25, controller).setTitle("Show my loc.").setCommand("ShowMyLoc"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 10, 240, 220, 25, controller).setTitle("Find Fiducials").setCommand("findFiducials"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 10, 190, 200, 25, controller).setTitle("Show my loc.").setCommand("ShowMyLoc"));
 
 //        // to move the transducer on X axis
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1280, 140, 100, 35, controller).setTitle(" Tx +X").setCommand("TxShiftToPlusDirX"));
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1280, 100, 100, 35, controller).setTitle(" Tx -X").setCommand("TxShiftToMinusDirX"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 10, 140, 100, 35, controller).setTitle(" Tx +X").setCommand("TxShiftToPlusDirX"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 10, 100, 100, 35, controller).setTitle(" Tx -X").setCommand("TxShiftToMinusDirX"));
 //        // to move the transducer on Y axis
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1410, 140, 100, 35, controller).setTitle(" Tx +Y").setCommand("TxShiftToPlusDirY"));
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1410, 100, 100, 35, controller).setTitle(" Tx -Y").setCommand("TxShiftToMinusDirY"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 120, 140, 100, 35, controller).setTitle(" Tx +Y").setCommand("TxShiftToPlusDirY"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 120, 100, 100, 35, controller).setTitle(" Tx -Y").setCommand("TxShiftToMinusDirY"));
 //        // to move the transducer on Z axis
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1540, 140, 100, 35, controller).setTitle(" Tx +Z").setCommand("TxShiftToPlusDirZ"));
-            panel.addChild(new Button(Button.ButtonType.BUTTON, 1540, 100, 100, 35, controller).setTitle(" Tx -Z").setCommand("TxShiftToMinusDirZ"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 230, 140, 100, 35, controller).setTitle(" Tx +Z").setCommand("TxShiftToPlusDirZ"));
+            panel.addChild("HydrophoneFiducials", new Button(Button.ButtonType.BUTTON, 230, 100, 100, 35, controller).setTitle(" Tx -Z").setCommand("TxShiftToMinusDirZ"));
         }
     }
     

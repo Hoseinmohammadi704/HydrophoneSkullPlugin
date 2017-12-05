@@ -90,26 +90,26 @@ public class FiducialFinder {
                     if (value > 3300 ) {
                         
                         float tx = (x - xsize/2f);
-                        float tz = (z - zsize/2f);
+                        float tz = -(z - zsize/2f);
                         
                         if (tx < 0 && tz < 0) {
-                            if (Math.abs(tx - tz) < 30) {
-                                fiducial = 2;
+                            if (Math.abs(-tx - -tz) < 30) {
+                                fiducial = 0;
                             }
                         }
                         else if (tx > 0 && tz < 0) {
-                            if (Math.abs(-tx - tz) < 30) {
-                                fiducial = 3;
+                            if (Math.abs(tx - -tz) < 30) {
+                                fiducial = 1;
                             }
                         }
                         else if (tx < 0 && tz > 0) {
-                            if (Math.abs(tx - -tz) < 30) {
-                                fiducial = 0;
+                            if (Math.abs(-tx - tz) < 30) {
+                                fiducial = 2;
                             }
                         }
                         else if (tx > 0 && tz > 0){
                             if (Math.abs(tx - tz) < 30) {
-                                fiducial = 1;
+                                fiducial = 3;
                             }
                         }
                         
@@ -156,7 +156,7 @@ public class FiducialFinder {
         
         System.out.println("Fiducial centroid: " + centroid);
                
-        double[][] knowns = { {-80.0, -80.0, 0.0}, {80.0, -80.0, 0.0}, {-80.0, 80.0, 0.0}, {80.0, 80.0, 0.0}};
+        double[][] knowns = { {-80.0, -80.0, 0.0}, {80.0, -80.0, 0.0}, {-80.0, 80.0, 0.0}, {80.0, 80.0, 0.0} };
         
         // build correlation matrix
         Jama.Matrix A = new Jama.Matrix(3, 3, 0.0);
@@ -165,7 +165,7 @@ public class FiducialFinder {
             double[][] sourcePoints = new double[3][1];
             sourcePoints[0][0] = (xpos[i] - centroid.x);
             sourcePoints[1][0] = (ypos[i] - centroid.y);
-            sourcePoints[2][0] = -(zpos[i] - centroid.z);
+            sourcePoints[2][0] = (zpos[i] - centroid.z);
             Jama.Matrix m = new Jama.Matrix(sourcePoints);
             
             double[][] targetPoints = new double[3][1];
@@ -192,11 +192,11 @@ public class FiducialFinder {
         double det = R.det();
         System.out.println("R.det() = " + det);
         
-        if (det<0) {
-            R.set(2, 0, -R.get(2, 0));
-            R.set(2, 1, -R.get(2, 1));
-            R.set(2, 2, -R.get(2, 2));
-        }
+//        if (det<0) {
+//            R.set(2, 0, -R.get(2, 0));
+//            R.set(2, 1, -R.get(2, 1));
+//            R.set(2, 2, -R.get(2, 2));
+//        }
                 
 //      Calculate translation
 
@@ -291,9 +291,11 @@ public class FiducialFinder {
         imagePosition[1] = (float)(rows[1]);// + ysize*yres/2f;
         imagePosition[2] = -(float)(rows[2]);// - zsize*zres/2f;
         
-        image.setAttribute("ImagePosition", imagePosition);
+//        image.setAttribute("ImagePosition", imagePosition);
+        image.setAttribute("ImagePosition", new float[3]);
         
-        image.setAttribute("ImageTranslation", new Vector3f(0, 0, 0));
+//        image.setAttribute("ImageTranslation", new Vector3f(0, 0, 0));
+        image.setAttribute("ImageTranslation", new Vector3f(imagePosition[0], imagePosition[1], imagePosition[2]));
         
  
     }
