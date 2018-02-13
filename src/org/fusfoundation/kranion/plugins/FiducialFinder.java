@@ -146,7 +146,7 @@ public class FiducialFinder {
                     
                     fiducial = -1;
                     
-                    if (value > 2500 ) {
+                    if (value > 3000 ) {
                         
                         float tx = (x - xsize/2f);
                         float tz = (z - zsize/2f);
@@ -177,9 +177,9 @@ public class FiducialFinder {
                             
 //                            value = 1f;
                         
-                            xpos[fiducial] += value*xres*(x - xsize/2f) + 0.5f; // weighted position
-                            ypos[fiducial] += value*yres*(y - ysize/2f) + 0.5f; // weighted position
-                            zpos[fiducial] += value*zres*(z - zsize/2f) + 0.5f; // weighted position
+                            xpos[fiducial] += value*xres*(x - xsize/2f + 0.5f); // weighted position
+                            ypos[fiducial] += value*yres*(y - ysize/2f + 0.5f); // weighted position
+                            zpos[fiducial] += value*zres*(z - zsize/2f + 0.5f); // weighted position
 
                             xsum[fiducial] += value;
                             ysum[fiducial] += value;
