@@ -27,6 +27,9 @@ import org.fusfoundation.kranion.ProgressListener;
 import org.fusfoundation.kranion.model.image.ImageVolume4D;
 import org.lwjgl.util.vector.Vector3f;
 import Jama.*;
+import org.fusfoundation.kranion.model.image.ImageVolumeUtil;
+import org.lwjgl.util.vector.Matrix3f;
+import org.lwjgl.util.vector.Quaternion;
 
 /**
  *
@@ -57,6 +60,50 @@ public class FiducialFinder {
         }
     }
     
+    private Vector3f transformPoint(Vector3f p, Quaternion rot) {
+        Vector3f result = new Vector3f();
+        
+        Quaternion p1 = new Quaternion(p.x, p.y, p.z, 0);
+        Quaternion rotprime = new Quaternion(-rot.x, -rot.y, -rot.z, rot.w);
+        
+        Quaternion.mul(rot, p1, p1);
+        Quaternion.mul(p1, rotprime, p1);
+        
+        result.set(p1.x, p1.y, p1.z);
+        
+        return result;
+    }
+    
+    // debugging to mark the detected fiducial point in the image data
+    private void markPointInImage(ImageVolume4D image, float x, float y, float z) {
+        int xsize = image.getDimension(0).getSize();
+        int ysize = image.getDimension(1).getSize();
+        int zsize = image.getDimension(2).getSize();
+        
+        float xres = image.getDimension(0).getSampleWidth(0);
+        float yres = image.getDimension(1).getSampleWidth(0);
+        float zres = image.getDimension(2).getSampleWidth(0);
+
+        int px = Math.round((x + xsize*xres/2f)/xres);
+        int py = Math.round((y + ysize*yres/2f)/yres);
+        int pz = Math.round((z + zsize*zres/2f)/zres);
+
+        short data[] = (short[])image.getData();
+        
+        
+        for (int i=-10; i<10; i++) {
+            data[image.getVoxelOffset(px, py, pz+i)] = 3000;
+        }
+        
+        for (int i=-10; i<10; i++) {
+            data[image.getVoxelOffset(px+i, py, pz)] = 3000;
+        }
+        
+        for (int i=-10; i<10; i++) {
+            data[image.getVoxelOffset(px, py+i, pz)] = 3000;
+        }
+    }
+    
     public boolean find(ImageVolume4D image, ProgressListener listener) {
         reset();
         
@@ -74,6 +121,18 @@ public class FiducialFinder {
         float yres = image.getDimension(1).getSampleWidth(0);
         float zres = image.getDimension(2).getSampleWidth(0);
         
+
+        float rescaleSlope = 1f;
+        float rescaleIntercept = 0f;
+        
+        try {
+            rescaleSlope = (Float) image.getAttribute("RescaleSlope");
+            rescaleIntercept = (Float) image.getAttribute("RescaleIntercept");
+        }
+        catch(Exception e) {}
+        
+        Quaternion imageOrientation = (Quaternion)image.getAttribute("ImageOrientationQ");
+        
         short data[] = (short[])image.getData();
         
         for (int x=0; x<xsize; x++) {
@@ -83,14 +142,14 @@ public class FiducialFinder {
             for (int y=0; y<ysize; y++) {
                 for (int z=0; z<zsize; z++) {
                     
-                    float value = data[image.getVoxelOffset(x, y, z)] & 0xff - 1024;
+                    float value = (data[image.getVoxelOffset(x, y, z)] ) * rescaleSlope + rescaleIntercept;
                     
                     fiducial = -1;
                     
-                    if (value > 3300 ) {
+                    if (value > 2500 ) {
                         
                         float tx = (x - xsize/2f);
-                        float tz = -(z - zsize/2f);
+                        float tz = (z - zsize/2f);
                         
                         if (tx < 0 && tz < 0) {
                             if (Math.abs(-tx - -tz) < 30) {
@@ -116,11 +175,11 @@ public class FiducialFinder {
                         if (fiducial > -1) {
                             pixelCounts[fiducial]++;
                             
-                            value = 1f;
+//                            value = 1f;
                         
-                            xpos[fiducial] += value*xres*x; // weighted position
-                            ypos[fiducial] += value*yres*y; // weighted position
-                            zpos[fiducial] += value*zres*z; // weighted position
+                            xpos[fiducial] += value*xres*(x - xsize/2f) + 0.5f; // weighted position
+                            ypos[fiducial] += value*yres*(y - ysize/2f) + 0.5f; // weighted position
+                            zpos[fiducial] += value*zres*(z - zsize/2f) + 0.5f; // weighted position
 
                             xsum[fiducial] += value;
                             ysum[fiducial] += value;
@@ -138,17 +197,30 @@ public class FiducialFinder {
             ypos[i] /= ysum[i];
             zpos[i] /= zsum[i];
             
+            Vector3f p = new Vector3f((float)xpos[i], (float)ypos[i], (float)zpos[i]);
+            Vector3f tp = new Vector3f(p);//transformPoint(p, imageOrientation); // transform from pixel space to image space
+            
+            xpos[i] = tp.x;
+            ypos[i] = tp.y;
+            zpos[i] = tp.z;
+            
             centroid.x += xpos[i];
             centroid.y += ypos[i];
             centroid.z += zpos[i];
             
             System.out.println("Fiducial " + i + ": " + xpos[i] + ", " + ypos[i] + ", " + zpos[i] + "   [" + pixelCounts[i] + "]");
             
-            if (pixelCounts[i] < 50) {
+            markPointInImage(image, (float)xpos[i], (float)ypos[i], (float)zpos[i]);
+            
+            if (pixelCounts[i] < 45) {
                 System.out.println("Fiducial " + i + " not found.");
                 return false;
             }
         }
+        
+        ImageVolumeUtil.releaseTextures(image);
+        ImageVolumeUtil.buildTexture(image, true);
+        // so confirmed to this point that the detected fiducial positions are correct
         
         centroid.x /= 4f;
         centroid.y /= 4f;
@@ -156,7 +228,11 @@ public class FiducialFinder {
         
         System.out.println("Fiducial centroid: " + centroid);
                
-        double[][] knowns = { {-80.0, -80.0, 0.0}, {80.0, -80.0, 0.0}, {-80.0, 80.0, 0.0}, {80.0, 80.0, 0.0} };
+        double[][] knowns = {   {-80.0, -80.0, 0.0}, {80.0, -80.0, 0.0}, {-80.0, 80.0, 0.0}, {80.0,  80.0, 0.0},    
+                                                                                                 
+                            };
+
+
         
         // build correlation matrix
         Jama.Matrix A = new Jama.Matrix(3, 3, 0.0);
@@ -192,20 +268,33 @@ public class FiducialFinder {
         double det = R.det();
         System.out.println("R.det() = " + det);
         
-//        if (det<0) {
-//            R.set(2, 0, -R.get(2, 0));
-//            R.set(2, 1, -R.get(2, 1));
-//            R.set(2, 2, -R.get(2, 2));
-//        }
+        if (det<0) {
+            
+//            Jama.Matrix V = svd.getV();
+//            V.set(2, 0, -V.get(2, 0));
+//            V.set(2, 1, -V.get(2, 1));
+//            V.set(2, 2, -V.get(2, 2));
+//            
+//            R = V.times(svd.getU().transpose());
+            
+
+            R.set(2, 0, -R.get(2, 0));
+            R.set(2, 1,  -R.get(2, 1));
+            R.set(2, 2,  -R.get(2, 2));
+                        
+            R.print(3, 3);
+            det = R.det();
+            System.out.println("R.det() = " + det);
+        }
                 
 //      Calculate translation
 
         // mbar is the centroid of fiducial positions found in image space
         // - image volume origin is the center of the volume
         Jama.Matrix mbar = new Jama.Matrix(3, 1);
-        mbar.set(0, 0, xsize*xres/2f - centroid.x);
-        mbar.set(1, 0, ysize*yres/2f - centroid.y);
-        mbar.set(2, 0, zsize*zres/2f - centroid.z);
+        mbar.set(0, 0, (centroid.x));
+        mbar.set(1, 0, (centroid.y));
+        mbar.set(2, 0, (centroid.z));
         
         // dbar is the centroid of the known fiducial positions in transducer coordinates
         Jama.Matrix dbar = new Jama.Matrix(3, 1);
@@ -220,10 +309,12 @@ public class FiducialFinder {
         dbar.set(2, 0, -3.37); // 150 - (161 - 12.7 + 3.9 + 1.17) = -3.37
 
                         
-        Jama.Matrix T = (dbar.minus(R.times(mbar)));
+        Jama.Matrix T = (dbar.plus(R.times(mbar)));
         System.out.println("Translation = ");
         T.print(3, 1);
         
+        T.set(2, 0, -T.get(2, 0)); // Flipped Z-axis fix
+                
 
         // check for answer, should get close to knowns
         for (int i=0; i<4; i++) {
@@ -263,12 +354,23 @@ public class FiducialFinder {
         Vector3f xvec = new Vector3f((float)rows[0], (float)rows[1], (float)rows[2]);
         Vector3f yvec = new Vector3f((float)rows[3], (float)rows[4], (float)rows[5]);
         Vector3f zvec = new Vector3f((float)rows[6], (float)rows[7], (float)rows[8]);
-//        Vector3f xvec = new Vector3f((float)rows[0], (float)rows[3], -(float)rows[6]);
-//        Vector3f yvec = new Vector3f((float)rows[1], (float)rows[4], -(float)rows[7]);
-//        Vector3f zvec = new Vector3f((float)rows[2], (float)rows[5], -(float)rows[8]);
+
+        Matrix3f rotMat = new Matrix3f();
+        rotMat.m00 = xvec.x; // Matrix3f is column major
+        rotMat.m01 = yvec.x;
+        rotMat.m02 = zvec.x;
         
+        rotMat.m10 = xvec.y;
+        rotMat.m11 = yvec.y;
+        rotMat.m12 = zvec.y;
+        
+        rotMat.m20 = xvec.z;
+        rotMat.m21 = yvec.z;
+        rotMat.m22 = zvec.z;
+                                
         System.out.println(xvec);
         System.out.println(yvec);
+        System.out.println(zvec);
         
         float[] imageOrientation = new float[6];
         
@@ -280,21 +382,27 @@ public class FiducialFinder {
         imageOrientation[4] = yvec.y;
         imageOrientation[5] = yvec.z;
         
-        image.setAttribute("ImageOrientation", imageOrientation);
+//        image.setAttribute("ImageOrientation", imageOrientation);
+        image.removeAttribute("ImageOrientation"); // TODO: not sure this matters, but some confusion about how this affects the rendering pipeline
         
-        rows = T.getColumnPackedCopy();
-        rows = T.getRowPackedCopy();
+        System.out.println("Rotation matrix from SVD:");
+        System.out.println(rotMat);
         
-        
+        Quaternion imageRotQ = new Quaternion();
+        imageRotQ.setFromMatrix(rotMat);
+        imageRotQ.normalise();
+
+        imageRotQ.z = -imageRotQ.z; // flipped Z axis fix
+        imageRotQ.w = -imageRotQ.w;
+                
+        image.setAttribute("ImageOrientationQ", imageRotQ);
+                        
         float[] imagePosition = new float[3];
-        imagePosition[0] = (float)(rows[0]);// + xsize*xres/2f;
-        imagePosition[1] = (float)(rows[1]);// + ysize*yres/2f;
-        imagePosition[2] = -(float)(rows[2]);// - zsize*zres/2f;
+
+        imagePosition[0] = (float)T.get(0, 0);
+        imagePosition[1] = (float)T.get(1, 0);
+        imagePosition[2] = (float)T.get(2, 0);
         
-//        image.setAttribute("ImagePosition", imagePosition);
-        image.setAttribute("ImagePosition", new float[3]);
-        
-//        image.setAttribute("ImageTranslation", new Vector3f(0, 0, 0));
         image.setAttribute("ImageTranslation", new Vector3f(imagePosition[0], imagePosition[1], imagePosition[2]));
         
  

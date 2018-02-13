@@ -85,11 +85,11 @@ public class HydrophoneSkullPlugin implements Plugin, ActionListener {
     
     @Override
     public void release() {
+        controller.removeActionListener(this);
+        
         controller = null;
         model = null;
-        view = null;
-        
-        controller.removeActionListener(this);        
+        view = null;       
     }    
 
     @Override
